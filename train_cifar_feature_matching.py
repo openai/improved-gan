@@ -105,7 +105,7 @@ test_err = T.mean(T.neq(T.argmax(output_before_softmax,axis=1),labels))
 lr = T.scalar()
 disc_params = ll.get_all_params(disc_layers, trainable=True)
 disc_param_updates = nn.adam_updates(disc_params, loss_lab + args.unlabeled_weight*loss_unl, lr=lr, mom1=0.5)
-init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates)
+init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates) # data based initialization
 init_param2 = th.function(inputs=[], outputs=None, updates=disc_avg_inits)
 train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates+bn_updates+disc_avg_updates)
 test_batch = th.function(inputs=[x_lab,labels], outputs=test_err, givens=disc_avg_givens)
@@ -116,8 +116,7 @@ output_unl = ll.get_output(disc_layers[-2], x_unl, deterministic=False)
 output_gen = ll.get_output(disc_layers[-2], gen_dat, deterministic=False)
 m1 = T.mean(output_unl,axis=0)
 m2 = T.mean(output_gen,axis=0)
-loss_gen = T.mean(abs(m1-m2))
-
+loss_gen = T.mean(abs(m1-m2)) # feature matching loss
 gen_params = ll.get_all_params(gen_layers, trainable=True)
 gen_param_updates = nn.adam_updates(gen_params, loss_gen, lr=lr, mom1=0.5)
 train_batch_gen = th.function(inputs=[x_unl,lr], outputs=None, updates=gen_param_updates)
@@ -133,8 +132,6 @@ for j in range(10):
     tys.append(trainy[trainy==j][:args.count])
 txs = np.concatenate(txs, axis=0)
 tys = np.concatenate(tys, axis=0)
-
-print("|txs| = %f" % np.sum(txs))
 
 # //////////// perform training //////////////
 for epoch in range(1001):
@@ -155,7 +152,7 @@ for epoch in range(1001):
     
     if epoch==0:
         print(trainx.shape)
-        init_param(trainx[:500])
+        init_param(trainx[:500]) # data based initialization
         init_param2()
 
     # train
@@ -172,6 +169,8 @@ for epoch in range(1001):
         train_err += te
         
         train_batch_gen(trainx_unl2[t*args.batch_size:(t+1)*args.batch_size],lr)
+
+    # sample image
     sample_x = np.concatenate([samplefun() for i in range(int(np.ceil(100/args.batch_size)))], axis=0)
     imgs = sample_x
     imgs = np.transpose(imgs[:100,], (0, 2, 3, 1))
@@ -184,6 +183,7 @@ for epoch in range(1001):
     name = "%d_%d_%d_%d" % (args.count, args.seed, args.seed_data, epoch)
     scipy.misc.imsave("cifar_sample_%s.png" % name, imgs)
 
+    # save params
     if epoch % 100 == 0:
         np.savez('disc_params_%s.npz' % name, [p.get_value() for p in disc_params])
         np.savez('gen_params_%s.npz' % name, [p.get_value() for p in gen_params])
@@ -197,7 +197,8 @@ for epoch in range(1001):
     for t in range(nr_batches_test):
         test_err += test_batch(testx[t*args.batch_size:(t+1)*args.batch_size],testy[t*args.batch_size:(t+1)*args.batch_size])
     test_err /= nr_batches_test
-    
+
+    # report
     print("Iteration %d, time = %ds, loss_lab = %.4f, loss_unl = %.4f, train err = %.4f, test err = %.4f" % (epoch, time.time()-begin, loss_lab, loss_unl, train_err, test_err))
     sys.stdout.flush()
 

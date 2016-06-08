@@ -143,8 +143,6 @@ for j in range(10):
 txs = np.concatenate(txs, axis=0)
 tys = np.concatenate(tys, axis=0)
 
-print("|txs| = %f" % np.sum(txs))
-
 # //////////// perform training //////////////
 for epoch in range(501):
     begin = time.time()
@@ -164,7 +162,7 @@ for epoch in range(501):
     
     if epoch==0:
         print(trainx.shape)
-        init_param(trainx[:500])
+        init_param(trainx[:500]) # data based initialization
         init_param2()
 
     # train

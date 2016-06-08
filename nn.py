@@ -1,5 +1,5 @@
 """
-neural network stuff
+neural network stuff, intended to be used with Lasagne
 """
 
 import numpy as np

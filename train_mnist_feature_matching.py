@@ -39,7 +39,7 @@ gen_dat = LL.get_output(gen_layers[-1], deterministic=False)
 print("Creating supervised model")
 layers = [LL.InputLayer(shape=(None, 28**2))]
 layers.append(nn.GaussianNoiseLayer(layers[-1], sigma=0.3))
-layers.append(nn.DenseLayer(layers[-1], num_units=1000))
+layers.append(nn.DenseLayer(layers[-1], num_units=1000)) # standard dense layer + weight normalization
 layers.append(nn.GaussianNoiseLayer(layers[-1], sigma=0.5))
 layers.append(nn.DenseLayer(layers[-1], num_units=500))
 layers.append(nn.GaussianNoiseLayer(layers[-1], sigma=0.5))
@@ -58,12 +58,13 @@ x_unl = T.matrix()
 
 temp = LL.get_output(gen_layers[-1], init=True)
 temp = LL.get_output(layers[-1], x_lab, deterministic=False, init=True)
-init_updates = [u for l in gen_layers+layers for u in getattr(l,'init_updates',[])]
+init_updates = [u for l in gen_layers+layers for u in getattr(l,'init_updates',[])] # data based initialization
 
 output_before_softmax_lab = LL.get_output(layers[-1], x_lab, deterministic=False)
 output_before_softmax_unl = LL.get_output(layers[-1], x_unl, deterministic=False)
 output_before_softmax_fake = LL.get_output(layers[-1], gen_dat, deterministic=False)
 
+# unsupervised loss
 z_exp_lab = T.mean(nn.log_sum_exp(output_before_softmax_lab))
 z_exp_unl = T.mean(nn.log_sum_exp(output_before_softmax_unl))
 z_exp_fake = T.mean(nn.log_sum_exp(output_before_softmax_fake))
@@ -72,13 +73,12 @@ loss_unl = -0.5*T.mean(l_unl) + \
             0.5*T.mean(T.nnet.softplus(nn.log_sum_exp(output_before_softmax_unl))) + \
             0.5*T.mean(T.nnet.softplus(nn.log_sum_exp(output_before_softmax_fake)))
 
-
+# supervised loss
 l_lab = output_before_softmax_lab[T.arange(args.batch_size),labels]
-loss_lab = -T.mean(l_lab) + T.mean(z_exp_lab) 
-
-
+loss_lab = -T.mean(l_lab) + T.mean(z_exp_lab)
 train_err = T.mean(T.neq(T.argmax(output_before_softmax_lab,axis=1),labels))
 
+# loss for training the generator
 mom_gen = T.mean(LL.get_output(layers[-3], gen_dat), axis=0)
 mom_real = T.mean(LL.get_output(layers[-3], x_unl), axis=0)
 loss_gen = T.mean(T.square(mom_gen - mom_real))
@@ -93,7 +93,7 @@ disc_params = LL.get_all_params(layers, trainable=True)
 disc_param_updates = nn.adam_updates(disc_params, loss_lab + args.unlabeled_weight*loss_unl, lr=lr, mom1=0.5)
 gen_params = LL.get_all_params(gen_layers[-1], trainable=True)
 gen_param_updates = nn.adam_updates(gen_params, loss_gen, lr=lr, mom1=0.5)
-init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates)
+init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates) # data based initialization
 train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates)
 train_batch_gen = th.function(inputs=[x_unl,lr], outputs=[loss_gen], updates=gen_param_updates)
 test_batch = th.function(inputs=[x_lab,labels], outputs=test_err)
@@ -117,16 +117,13 @@ trainx = trainx[inds]
 trainy = trainy[inds]
 txs = []
 tys = []
-
 for j in range(10):
     txs.append(trainx[trainy==j][:args.count])
     tys.append(trainy[trainy==j][:args.count])
 txs = np.concatenate(txs, axis=0)
 tys = np.concatenate(tys, axis=0)
 
-print("|txs| = %f" % np.sum(txs))
-
-init_param(trainx[:500])
+init_param(trainx[:500]) # data based initialization
 
 # //////////// perform training //////////////
 start_lr = 0.001
@@ -167,7 +164,8 @@ for epoch in range(301):
     for t in range(nr_batches_test):
         test_err += test_batch(testx[t*args.batch_size:(t+1)*args.batch_size],testy[t*args.batch_size:(t+1)*args.batch_size])
     test_err /= nr_batches_test
-    
+
+    # report
     print("Iteration %d, time = %ds, loss_lab = %.4f, loss_unl = %.4f, train err = %.4f, test err = %.4f" % (epoch, time.time()-begin, loss_lab, loss_unl, train_err, test_err))
     sys.stdout.flush()
     if epoch % 100 == 0:

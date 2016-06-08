@@ -100,7 +100,6 @@ samplefun = th.function(inputs=[],outputs=gen_dat)
 
 # Theano functions for training the gen net
 loss_gen = -T.mean(T.nnet.softplus(l_gen))
-
 gen_params = ll.get_all_params(gen_layers[-1], trainable=True)
 gen_param_updates = nn.adam_updates(gen_params, loss_gen, lr=lr, mom1=0.5)
 train_batch_gen = th.function(inputs=[lr], outputs=None, updates=gen_param_updates)
@@ -134,7 +133,7 @@ for epoch in range(500):
     trainx_unl = trainx_unl[rng.permutation(trainx_unl.shape[0])]
     
     if epoch==0:
-        init_param(trainx[:500])
+        init_param(trainx[:500]) # data based initialization
 
     # train
     loss_lab = 0.
@@ -180,7 +179,8 @@ for epoch in range(500):
     for t in range(nr_batches_test):
         test_err += test_batch(testx[t*args.batch_size:(t+1)*args.batch_size],testy[t*args.batch_size:(t+1)*args.batch_size])
     test_err /= nr_batches_test
-    
+
+    # report
     print("Iteration %d, time = %ds, loss_lab = %.4f, loss_unl = %.4f, train err = %.4f, test err = %.4f" % (epoch, time.time()-begin, loss_lab, loss_unl, train_err, test_err))
     sys.stdout.flush()
     
