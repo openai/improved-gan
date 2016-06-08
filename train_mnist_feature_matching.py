@@ -32,7 +32,7 @@ noise = theano_rng.uniform(size=(args.batch_size, 100))
 gen_layers = [LL.InputLayer(shape=(args.batch_size, 100), input_var=noise)]
 gen_layers.append(nn.batch_norm(LL.DenseLayer(gen_layers[-1], num_units=500, nonlinearity=T.nnet.softplus), g=None))
 gen_layers.append(nn.batch_norm(LL.DenseLayer(gen_layers[-1], num_units=500, nonlinearity=T.nnet.softplus), g=None))
-gen_layers.append(nn.l2_norm(LL.DenseLayer(gen_layers[-1], num_units=28**2, nonlinearity=T.nnet.sigmoid), train_g=True))
+gen_layers.append(nn.weight_norm(LL.DenseLayer(gen_layers[-1], num_units=28**2, nonlinearity=T.nnet.sigmoid), train_g=True))
 gen_dat = LL.get_output(gen_layers[-1], deterministic=False)
 
 # specify supervised model

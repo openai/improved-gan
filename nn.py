@@ -149,10 +149,10 @@ class GaussianNoiseLayer(lasagne.layers.Layer):
                 self.noise = self._srng.normal(input.shape, avg=0.0, std=self.sigma)
             return input + self.noise
 
-class L2NormLayer(lasagne.layers.Layer):
+class WeightNormLayer(lasagne.layers.Layer):
     def __init__(self, incoming, b=lasagne.init.Constant(0.), g=lasagne.init.Constant(1.),
                  W=lasagne.init.Normal(0.05), train_g=False, nonlinearity=relu, **kwargs):
-        super(L2NormLayer, self).__init__(incoming, **kwargs)
+        super(WeightNormLayer, self).__init__(incoming, **kwargs)
         self.nonlinearity = nonlinearity
         k = self.input_shape[1]
         if b is not None:
@@ -196,14 +196,14 @@ class L2NormLayer(lasagne.layers.Layer):
             
         return self.nonlinearity(input)
         
-def l2_norm(layer, **kwargs):
+def weight_norm(layer, **kwargs):
     nonlinearity = getattr(layer, 'nonlinearity', None)
     if nonlinearity is not None:
         layer.nonlinearity = lasagne.nonlinearities.identity
     if hasattr(layer, 'b'):
         del layer.params[layer.b]
         layer.b = None
-    return L2NormLayer(layer, nonlinearity=nonlinearity, **kwargs)
+    return WeightNormLayer(layer, nonlinearity=nonlinearity, **kwargs)
 
 class Deconv2DDNNLayer(lasagne.layers.Layer):
     def __init__(self, incoming, target_shape, filter_size, stride=(2, 2),
