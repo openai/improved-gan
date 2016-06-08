@@ -171,8 +171,7 @@ for epoch in range(1001):
         train_batch_gen(trainx_unl2[t*args.batch_size:(t+1)*args.batch_size],lr)
 
     # sample image
-    sample_x = np.concatenate([samplefun() for i in range(int(np.ceil(100/args.batch_size)))], axis=0)
-    imgs = sample_x
+    imgs = samplefun()
     imgs = np.transpose(imgs[:100,], (0, 2, 3, 1))
     imgs = [imgs[i, :, :, :] for i in range(100)]
     rows = []

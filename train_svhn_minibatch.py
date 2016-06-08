@@ -138,7 +138,7 @@ for epoch in range(500):
 
         # generate samples from the model
         if np.mod(t,100)==0:
-            sample_x = np.concatenate([samplefun() for i in range(int(np.ceil(100/args.batch_size)))], axis=0)
+            sample_x = samplefun()
             img_bhwc = np.transpose(sample_x[:100,], (0, 2, 3, 1))
             img_tile = plotting.img_tile(img_bhwc, aspect_ratio=1.0, border_color=1.0, stretch=True)
             img = plotting.plot_img(img_tile, title='SVHN samples')

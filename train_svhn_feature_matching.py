@@ -200,8 +200,7 @@ for epoch in range(501):
         np.savez('gen_params_%s.npz' % name, [p.get_value() for p in gen_params])
 
         # sample
-        sample_x = np.concatenate([samplefun() for i in range(int(np.ceil(100/args.batch_size)))], axis=0)
-        imgs = sample_x
+        imgs = samplefun()
         imgs = np.transpose(imgs[:100,], (0, 2, 3, 1))
         imgs = [imgs[i, :, :, :] for i in range(100)]
         rows = []
