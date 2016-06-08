@@ -1,3 +1,7 @@
+"""
+neural network stuff
+"""
+
 import numpy as np
 import theano as th
 import theano.tensor as T
@@ -92,7 +96,9 @@ def batch_norm(layer, b=lasagne.init.Constant(0.), g=lasagne.init.Constant(1.), 
         del layer.params[layer.b]
         layer.b = None
     return BatchNormLayer(layer, b, g, nonlinearity=nonlinearity, **kwargs)
-        
+
+# dense layer with weight normalization
+# we later switched to another code base where we apply weight normalization using a separate layer (see below), but this is included to ensure perfect reproducibility
 class DenseLayer(lasagne.layers.Layer):
     def __init__(self, incoming, num_units, theta=lasagne.init.Normal(0.1), b=lasagne.init.Constant(0.), 
                  weight_scale=lasagne.init.Constant(1.), train_scale=False, nonlinearity=relu, **kwargs):
@@ -239,6 +245,7 @@ class Deconv2DDNNLayer(lasagne.layers.Layer):
     def get_output_shape_for(self, input_shape):
         return self.target_shape
 
+# minibatch discrimination layer
 class MMDLayer(lasagne.layers.Layer):
     def __init__(self, incoming, num_kernels, dim_per_kernel=5, theta=lasagne.init.Normal(0.1),
                  log_weight_scale=lasagne.init.Constant(0.), b=lasagne.init.Constant(-1.), **kwargs):
