@@ -148,7 +148,7 @@ for epoch in range(500):
         train_err += te
         
         for rep in range(3):
-            train_batch_gen(lr) #trainx__unl2[t*args.batch_size:(t+1)*args.batch_size],
+            train_batch_gen(lr)
 
         # generate samples from the model
         if np.mod(t,100)==0:

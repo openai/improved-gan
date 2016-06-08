@@ -26,7 +26,6 @@ def unpickle(file):
     fo = open(file, 'rb')
     d = cPickle.load(fo)
     fo.close()
-    #return {'x': d['data'].reshape((10000,3,32,32)), 'y': np.array(d['labels']).astype(np.uint8)}
     return {'x': np.cast[np.float32]((-127.5 + d['data'].reshape((10000,3,32,32)))/128.), 'y': np.array(d['labels']).astype(np.uint8)}
 
 def load(data_dir, subset='train'):

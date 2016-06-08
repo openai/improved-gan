@@ -55,9 +55,7 @@ gen_dat = ll.get_output(gen_layers[-1])
 
 # specify discriminative model
 disc_layers = [ll.InputLayer(shape=(None, 3, 32, 32))]
-#disc_layers.append(dnn.Conv2DDNNLayer(disc_layers[-1], 3, (1, 1), pad=2, W=Normal(0.05), nonlinearity=nn.lrelu))
 disc_layers.append(ll.DropoutLayer(disc_layers[-1], p=0.2))
-#disc_layers.append(ll.GaussianNoiseLayer(disc_layers[-1], sigma=0.2))
 disc_layers.append(nn.l2_norm(dnn.Conv2DDNNLayer(disc_layers[-1], 96, (3,3), pad=1, W=Normal(0.05), nonlinearity=nn.lrelu)))
 disc_layers.append(nn.l2_norm(dnn.Conv2DDNNLayer(disc_layers[-1], 96, (3,3), pad=1, W=Normal(0.05), nonlinearity=nn.lrelu)))
 disc_layers.append(nn.l2_norm(dnn.Conv2DDNNLayer(disc_layers[-1], 96, (3,3), pad=1, stride=2, W=Normal(0.05), nonlinearity=nn.lrelu)))
@@ -141,7 +139,7 @@ print("|txs| = %f" % np.sum(txs))
 # //////////// perform training //////////////
 for epoch in range(1001):
     begin = time.time()
-    lr = np.cast[th.config.floatX](args.learning_rate) # * np.minimum(2.5 - epoch/200., 1.)
+    lr = np.cast[th.config.floatX](args.learning_rate)
 
     # construct randomly permuted minibatches
     trainx = []
@@ -167,7 +165,6 @@ for epoch in range(1001):
     for t in range(nr_batches_train):
         ran_from = t*args.batch_size
         ran_to = (t+1)*args.batch_size
-        #print(ran_from, ran_to, trainx.shape, trainy.shape, trainx_unl.shape)
         ll, lu, te = train_batch_disc(trainx[ran_from:ran_to],trainy[ran_from:ran_to],
                                       trainx_unl[ran_from:ran_to],lr)
         loss_lab += ll
