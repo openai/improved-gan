@@ -37,22 +37,6 @@ def adam_updates(params, cost, lr=0.001, mom1=0.9, mom2=0.999):
     updates.append((t, t+1))
     return updates
 
-def l2normalize(layer, train_scale=True):
-    W_param = layer.W
-    s = W_param.get_value().shape
-    if len(s)==4:
-        axes_to_sum = (1,2,3)
-        dimshuffle_args = [0,'x','x','x']
-        k = s[0]
-    else:
-        axes_to_sum = 0
-        dimshuffle_args = ['x',0]
-        k = s[1]
-    layer.W_scale = layer.add_param(lasagne.init.Constant(1.), 
-                          (k,), name="W_scale", trainable=train_scale, regularizable=False)
-    layer.W = W_param * (layer.W_scale/T.sqrt(1e-6 + T.sum(T.square(W_param),axis=axes_to_sum))).dimshuffle(*dimshuffle_args)
-    return layer
-
 class BatchNormLayer(lasagne.layers.Layer):
     def __init__(self, incoming, b=lasagne.init.Constant(0.), g=lasagne.init.Constant(1.), nonlinearity=relu, **kwargs):
         super(BatchNormLayer, self).__init__(incoming, **kwargs)
