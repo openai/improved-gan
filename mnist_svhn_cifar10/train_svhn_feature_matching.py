@@ -18,18 +18,13 @@ import svhn_data
 parser = argparse.ArgumentParser()
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--seed_data', type=int, default=1)
-parser.add_argument('--count', type=int, default=400)
+parser.add_argument('--count', type=int, default=100)
 parser.add_argument('--batch_size', type=int, default=100)
 parser.add_argument('--unlabeled_weight', type=float, default=1.)
 parser.add_argument('--learning_rate', type=float, default=0.0003)
-parser.add_argument('--data_dir', type=str, default='/home/ubuntu/data')
+parser.add_argument('--data_dir', type=str, default='/home/tim/data')
 args = parser.parse_args()
 print(args)
-
-# set output
-name = "%d_%d_%d" % (args.count, args.seed, args.seed_data)
-sys.stdout = open('log_'+name+'.txt', 'w')
-
 
 # fixed random seeds
 rng_data = np.random.RandomState(args.seed_data)
@@ -56,11 +51,10 @@ noise = theano_rng.uniform(size=noise_dim)
 gen_layers = [ll.InputLayer(shape=noise_dim, input_var=noise)]
 gen_layers.append(nn.batch_norm(ll.DenseLayer(gen_layers[-1], num_units=4*4*512, W=Normal(0.05), nonlinearity=nn.relu), g=None))
 gen_layers.append(ll.ReshapeLayer(gen_layers[-1], (args.batch_size,512,4,4)))
-gen_layers.append(nn.batch_norm(nn.Deconv2DDNNLayer(gen_layers[-1], (args.batch_size,256,8,8), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 4 -> 8
-gen_layers.append(nn.batch_norm(nn.Deconv2DDNNLayer(gen_layers[-1], (args.batch_size,128,16,16), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 8 -> 16
-gen_layers.append(nn.weight_norm(nn.Deconv2DDNNLayer(gen_layers[-1], (args.batch_size,3,32,32), (5,5), W=Normal(0.05), nonlinearity=T.tanh),train_g=True)) # 16 -> 32
+gen_layers.append(nn.batch_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,256,8,8), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 4 -> 8
+gen_layers.append(nn.batch_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,128,16,16), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 8 -> 16
+gen_layers.append(nn.weight_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,3,32,32), (5,5), W=Normal(0.05), nonlinearity=T.tanh),train_g=True)) # 16 -> 32
 gen_dat = ll.get_output(gen_layers[-1])
-
 
 # specify discriminative model
 disc_layers = [ll.InputLayer(shape=(None, 3, 32, 32))]
@@ -89,9 +83,8 @@ disc_avg_updates = [(a,a+0.001*(p-a)) for p,a in disc_avg_givens]
 labels = T.ivector()
 x_lab = T.tensor4()
 x_unl = T.tensor4()
-temp = ll.get_output(gen_layers[-1], deterministic=False, init=True)
 temp = ll.get_output(disc_layers[-1], x_lab, deterministic=False, init=True)
-init_updates = [u for l in gen_layers+disc_layers for u in getattr(l,'init_updates',[])]
+init_updates = [u for l in disc_layers for u in getattr(l,'init_updates',[])]
 
 output_before_softmax_lab = ll.get_output(disc_layers[-1], x_lab, deterministic=False)
 output_before_softmax_unl = ll.get_output(disc_layers[-1], x_unl, deterministic=False)
@@ -195,20 +188,19 @@ for epoch in range(501):
     print("Iteration %d, time = %ds, loss_lab = %.4f, loss_unl = %.4f, train err = %.4f, test err = %.4f" % (epoch, time.time()-begin, loss_lab, loss_unl, train_err, test_err))
     sys.stdout.flush()
 
-    if epoch % 100 == 0:
-        np.savez('disc_params_%s.npz' % name, [p.get_value() for p in disc_params])
-        np.savez('gen_params_%s.npz' % name, [p.get_value() for p in gen_params])
+    # sample
+    imgs = samplefun()
+    imgs = np.transpose(imgs[:100,], (0, 2, 3, 1))
+    imgs = [imgs[i, :, :, :] for i in range(100)]
+    rows = []
+    for i in range(10):
+        rows.append(np.concatenate(imgs[i::10], 1))
+    imgs = np.concatenate(rows, 0)
+    scipy.misc.imsave("svhn_sample_feature_match.png", imgs)
 
-        # sample
-        imgs = samplefun()
-        imgs = np.transpose(imgs[:100,], (0, 2, 3, 1))
-        imgs = [imgs[i, :, :, :] for i in range(100)]
-        rows = []
-        for i in range(10):
-            rows.append(np.concatenate(imgs[i::10], 1))
-        imgs = np.concatenate(rows, 0)
+    # save params
+    #np.savez('disc_params.npz',*[p.get_value() for p in disc_params])
+    #np.savez('gen_params.npz',*[p.get_value() for p in gen_params])
 
-        scipy.misc.imsave("svhn_sample_%s.png" % name, imgs)
-        np.savez('test_pred_%s.npz' % name, test_pred)
 
 

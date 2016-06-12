@@ -5,8 +5,6 @@ neural network stuff, intended to be used with Lasagne
 import numpy as np
 import theano as th
 import theano.tensor as T
-from theano.sandbox.cuda.dnn import dnn_conv
-from scipy import linalg
 import lasagne
 from lasagne.layers import dnn
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -97,42 +95,6 @@ def batch_norm(layer, b=lasagne.init.Constant(0.), g=lasagne.init.Constant(1.), 
         layer.b = None
     return BatchNormLayer(layer, b, g, nonlinearity=nonlinearity, **kwargs)
 
-# dense layer with weight normalization
-# we later switched to another code base where we apply weight normalization using a separate layer (see below), but this is included to ensure perfect reproducibility
-class DenseLayer(lasagne.layers.Layer):
-    def __init__(self, incoming, num_units, theta=lasagne.init.Normal(0.1), b=lasagne.init.Constant(0.), 
-                 weight_scale=lasagne.init.Constant(1.), train_scale=False, nonlinearity=relu, **kwargs):
-        super(DenseLayer, self).__init__(incoming, **kwargs)
-        self.nonlinearity = (lasagne.nonlinearities.identity if nonlinearity is None else nonlinearity)
-        self.num_units = num_units
-        num_inputs = int(np.prod(self.input_shape[1:]))
-        self.theta = self.add_param(theta, (num_inputs, num_units), name="theta")
-        self.weight_scale = self.add_param(weight_scale, (num_units,), name="weight_scale", trainable=train_scale)
-        self.W = self.theta * (self.weight_scale/T.sqrt(T.sum(T.square(self.theta),axis=0))).dimshuffle('x',0)
-        self.b = self.add_param(b, (num_units,), name="b")
-
-    def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.num_units)
-
-    def get_output_for(self, input, init=False, deterministic=False, **kwargs):
-        if input.ndim > 2:
-            # if the input has more than two dimensions, flatten it into a
-            # batch of feature vectors.
-            input = input.flatten(2)
-        
-        activation = T.dot(input, self.W)
-        
-        if init:
-            ma = T.mean(activation, axis=0)
-            activation -= ma.dimshuffle('x',0)
-            stdv = T.sqrt(T.mean(T.square(activation),axis=0))
-            activation /= stdv.dimshuffle('x',0)
-            self.init_updates = [(self.weight_scale, self.weight_scale/stdv), (self.b, -ma/stdv)]
-        else:
-            activation += self.b.dimshuffle('x', 0)
-
-        return self.nonlinearity(activation)
-
 class GlobalAvgLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
         super(GlobalAvgLayer, self).__init__(incoming, **kwargs)
@@ -176,7 +138,7 @@ class WeightNormLayer(lasagne.layers.Layer):
         incoming.W_param = incoming.W
         #incoming.W_param.set_value(W.sample(incoming.W_param.get_value().shape))
         if incoming.W_param.ndim==4:
-            if isinstance(incoming, Deconv2DDNNLayer):
+            if isinstance(incoming, Deconv2DLayer):
                 W_axes_to_sum = (0,2,3)
                 W_dimshuffle_args = ['x',0,'x','x']
             else:
@@ -186,9 +148,9 @@ class WeightNormLayer(lasagne.layers.Layer):
             W_axes_to_sum = 0
             W_dimshuffle_args = ['x',0]
         if g is not None:
-            incoming.W = incoming.W_param * (self.g/T.sqrt(T.sum(T.square(incoming.W_param),axis=W_axes_to_sum))).dimshuffle(*W_dimshuffle_args)
+            incoming.W = incoming.W_param * (self.g/T.sqrt(1e-6 + T.sum(T.square(incoming.W_param),axis=W_axes_to_sum))).dimshuffle(*W_dimshuffle_args)
         else:
-            incoming.W = incoming.W_param / T.sqrt(T.sum(T.square(incoming.W_param),axis=W_axes_to_sum,keepdims=True))        
+            incoming.W = incoming.W_param / T.sqrt(1e-6 + T.sum(T.square(incoming.W_param),axis=W_axes_to_sum,keepdims=True))
 
     def get_output_for(self, input, init=False, **kwargs):
         if init:
@@ -201,7 +163,7 @@ class WeightNormLayer(lasagne.layers.Layer):
             input += self.b.dimshuffle(*self.dimshuffle_args)
             
         return self.nonlinearity(input)
-        
+
 def weight_norm(layer, **kwargs):
     nonlinearity = getattr(layer, 'nonlinearity', None)
     if nonlinearity is not None:
@@ -211,32 +173,27 @@ def weight_norm(layer, **kwargs):
         layer.b = None
     return WeightNormLayer(layer, nonlinearity=nonlinearity, **kwargs)
 
-class Deconv2DDNNLayer(lasagne.layers.Layer):
+class Deconv2DLayer(lasagne.layers.Layer):
     def __init__(self, incoming, target_shape, filter_size, stride=(2, 2),
                  W=lasagne.init.Normal(0.5), b=lasagne.init.Constant(0.), nonlinearity=relu, **kwargs):
-        super(Deconv2DDNNLayer, self).__init__(incoming, **kwargs)
+        super(Deconv2DLayer, self).__init__(incoming, **kwargs)
         self.target_shape = target_shape
         self.nonlinearity = (lasagne.nonlinearities.identity if nonlinearity is None else nonlinearity)
         self.filter_size = lasagne.layers.dnn.as_tuple(filter_size, 2)
         self.stride = lasagne.layers.dnn.as_tuple(stride, 2)
         self.target_shape = target_shape
-        
-        self.W = self.add_param(W, (incoming.output_shape[1],target_shape[1],filter_size[0],filter_size[1]), name="W")
+
+        self.W_shape = (incoming.output_shape[1], target_shape[1], filter_size[0], filter_size[1])
+        self.W = self.add_param(W, self.W_shape, name="W")
         if b is not None:
             self.b = self.add_param(b, (target_shape[1],), name="b")
         else:
             self.b = None
 
-        # create a pseudo input for the convolutional layer
-        self.pseudo_input = T.zeros(target_shape, dtype=th.config.floatX)
-
     def get_output_for(self, input, **kwargs):
-        pad = ((self.filter_size[0]-1)/2, (self.filter_size[1]-1)/2)
-        conved = dnn_conv(img=self.pseudo_input, kerns=self.W, subsample=self.stride,
-                          border_mode=pad, conv_mode='cross') # 'valid'
-        pseudo_cost = T.sum(conved*input)
-        activation = T.grad(pseudo_cost, self.pseudo_input)
-        
+        op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=self.target_shape, kshp=self.W_shape, subsample=self.stride, border_mode='half')
+        activation = op(self.W, input, self.target_shape[2:])
+
         if self.b is not None:
             activation += self.b.dimshuffle('x', 0, 'x', 'x')
 
@@ -246,10 +203,10 @@ class Deconv2DDNNLayer(lasagne.layers.Layer):
         return self.target_shape
 
 # minibatch discrimination layer
-class MMDLayer(lasagne.layers.Layer):
+class MinibatchLayer(lasagne.layers.Layer):
     def __init__(self, incoming, num_kernels, dim_per_kernel=5, theta=lasagne.init.Normal(0.1),
                  log_weight_scale=lasagne.init.Constant(0.), b=lasagne.init.Constant(-1.), **kwargs):
-        super(MMDLayer, self).__init__(incoming, **kwargs)
+        super(MinibatchLayer, self).__init__(incoming, **kwargs)
         self.num_kernels = num_kernels
         num_inputs = int(np.prod(self.input_shape[1:]))
         self.theta = self.add_param(theta, (num_inputs, num_kernels, dim_per_kernel), name="theta")
@@ -285,4 +242,3 @@ class MMDLayer(lasagne.layers.Layer):
             f += self.b.dimshuffle('x',0)
 
         return T.concatenate([input, f], axis=1)
-        

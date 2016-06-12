@@ -21,6 +21,7 @@ parser.add_argument('--batch_size', default=100)
 parser.add_argument('--unlabeled_weight', type=float, default=1.)
 parser.add_argument('--learning_rate', type=float, default=0.0003)
 parser.add_argument('--data_dir', type=str, default='/home/tim/data/cifar-10-python')
+parser.add_argument('--count', type=int, default=400)
 args = parser.parse_args()
 print(args)
 
@@ -42,9 +43,9 @@ noise = theano_rng.uniform(size=noise_dim)
 gen_layers = [ll.InputLayer(shape=noise_dim, input_var=noise)]
 gen_layers.append(nn.batch_norm(ll.DenseLayer(gen_layers[-1], num_units=4*4*512, W=Normal(0.05), nonlinearity=nn.relu), g=None))
 gen_layers.append(ll.ReshapeLayer(gen_layers[-1], (args.batch_size,512,4,4)))
-gen_layers.append(nn.batch_norm(nn.Deconv2DDNNLayer(gen_layers[-1], (args.batch_size,256,8,8), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 4 -> 8
-gen_layers.append(nn.batch_norm(nn.Deconv2DDNNLayer(gen_layers[-1], (args.batch_size,128,16,16), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 8 -> 16
-gen_layers.append(nn.weight_norm(nn.Deconv2DDNNLayer(gen_layers[-1], (args.batch_size,3,32,32), (5,5), W=Normal(0.05), nonlinearity=T.tanh),train_g=True)) # 16 -> 32
+gen_layers.append(nn.batch_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,256,8,8), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 4 -> 8
+gen_layers.append(nn.batch_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,128,16,16), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 8 -> 16
+gen_layers.append(nn.weight_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,3,32,32), (5,5), W=Normal(0.05), nonlinearity=T.tanh),train_g=True)) # 16 -> 32
 gen_dat = ll.get_output(gen_layers[-1])
 
 # specify discriminative model
@@ -62,7 +63,7 @@ disc_layers.append(nn.weight_norm(dnn.Conv2DDNNLayer(disc_layers[-1], 192, (3,3)
 disc_layers.append(nn.weight_norm(ll.NINLayer(disc_layers[-1], num_units=192, W=Normal(0.05), nonlinearity=nn.lrelu)))
 disc_layers.append(nn.weight_norm(ll.NINLayer(disc_layers[-1], num_units=192, W=Normal(0.05), nonlinearity=nn.lrelu)))
 disc_layers.append(nn.GlobalAvgLayer(disc_layers[-1]))
-disc_layers.append(nn.MMDLayer(disc_layers[-1], num_kernels=100))
+disc_layers.append(nn.MinibatchLayer(disc_layers[-1], num_kernels=100))
 disc_layers.append(nn.weight_norm(ll.DenseLayer(disc_layers[-1], num_units=10, W=Normal(0.05), nonlinearity=None),train_g=True))
 
 # costs
@@ -70,7 +71,7 @@ labels = T.ivector()
 x_lab = T.tensor4()
 x_unl = T.tensor4()
 temp = ll.get_output(disc_layers[-1], x_lab, deterministic=False, init=True)
-init_updates = [u for l in gen_layers+disc_layers for u in getattr(l,'init_updates',[])]
+init_updates = [u for l in disc_layers for u in getattr(l,'init_updates',[])]
 
 output_before_softmax_lab = ll.get_output(disc_layers[-1], x_lab, deterministic=False)
 output_before_softmax_unl = ll.get_output(disc_layers[-1], x_unl, deterministic=False)
@@ -111,8 +112,8 @@ trainy = trainy[inds]
 txs = []
 tys = []
 for j in range(10):
-    txs.append(trainx[trainy==j][:400])
-    tys.append(trainy[trainy==j][:400])
+    txs.append(trainx[trainy==j][:args.count])
+    tys.append(trainy[trainy==j][:args.count])
 txs = np.concatenate(txs, axis=0)
 tys = np.concatenate(tys, axis=0)
 
@@ -149,26 +150,6 @@ for epoch in range(500):
         for rep in range(3):
             train_batch_gen(lr)
 
-        # generate samples from the model
-        if np.mod(t,100)==0:
-            sample_x = samplefun()
-            img_bhwc = np.transpose(sample_x[:100,], (0, 2, 3, 1))
-            img_tile = plotting.img_tile(img_bhwc, aspect_ratio=1.0, border_color=1.0, stretch=True)
-            img = plotting.plot_img(img_tile, title='CIFAR10 samples')
-            plotting.plt.savefig('cifar10_sample.png')
-            plotting.plt.close('all')
-            
-            # find nearest neighbors
-            neighbor_x = np.zeros(shape=(100,3,32,32))
-            for j in range(100):
-                d = np.sum(np.square(trainx_unl - sample_x[j,:,:,:].reshape((1,3,32,32))),axis=(1,2,3))
-                neighbor_x[j,:,:,:] = trainx_unl[np.argmin(d),:,:,:]
-            img_bhwc = np.transpose(neighbor_x, (0, 2, 3, 1))
-            img_tile = plotting.img_tile(img_bhwc, aspect_ratio=1.0, border_color=1.0, stretch=True)
-            img = plotting.plot_img(img_tile, title='CIFAR10 nearest neighbors')
-            plotting.plt.savefig('cifar10_neighbors.png')
-            plotting.plt.close('all')
-
     loss_lab /= nr_batches_train
     loss_unl /= nr_batches_train
     train_err /= nr_batches_train
@@ -182,9 +163,17 @@ for epoch in range(500):
     # report
     print("Iteration %d, time = %ds, loss_lab = %.4f, loss_unl = %.4f, train err = %.4f, test err = %.4f" % (epoch, time.time()-begin, loss_lab, loss_unl, train_err, test_err))
     sys.stdout.flush()
+
+    # generate samples from the model
+    sample_x = samplefun()
+    img_bhwc = np.transpose(sample_x[:100,], (0, 2, 3, 1))
+    img_tile = plotting.img_tile(img_bhwc, aspect_ratio=1.0, border_color=1.0, stretch=True)
+    img = plotting.plot_img(img_tile, title='CIFAR10 samples')
+    plotting.plt.savefig('cifar10_sample_minibatch.png')
+    plotting.plt.close('all')
     
     # save params
-    np.savez('disc_params.npz',[p.get_value() for p in disc_params])
-    np.savez('gen_params.npz',[p.get_value() for p in gen_params])
+    #np.savez('disc_params.npz',*[p.get_value() for p in disc_params])
+    #np.savez('gen_params.npz',*[p.get_value() for p in gen_params])
 
 
