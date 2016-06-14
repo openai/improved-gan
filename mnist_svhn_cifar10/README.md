@@ -6,3 +6,5 @@ The experiments are run using the train*.py files. All experiments perform semi-
 
 The provided train*.py files each train a single model for a single random labeled/unlabeled data split and a single random parameter initialization. To reproduce our results using ensembling / averaging over random seeds, you can run these files multiple times using different inputs for the "seed" and "seed_data" arguments, and then combine the results.
 
+This code is still being developed and subject to change.
+

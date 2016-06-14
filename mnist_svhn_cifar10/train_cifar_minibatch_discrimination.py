@@ -45,7 +45,7 @@ gen_layers.append(nn.batch_norm(ll.DenseLayer(gen_layers[-1], num_units=4*4*512,
 gen_layers.append(ll.ReshapeLayer(gen_layers[-1], (args.batch_size,512,4,4)))
 gen_layers.append(nn.batch_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,256,8,8), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 4 -> 8
 gen_layers.append(nn.batch_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,128,16,16), (5,5), W=Normal(0.05), nonlinearity=nn.relu), g=None)) # 8 -> 16
-gen_layers.append(nn.weight_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,3,32,32), (5,5), W=Normal(0.05), nonlinearity=T.tanh),train_g=True)) # 16 -> 32
+gen_layers.append(nn.weight_norm(nn.Deconv2DLayer(gen_layers[-1], (args.batch_size,3,32,32), (5,5), W=Normal(0.05), nonlinearity=T.tanh), train_g=True, init_stdv=0.1)) # 16 -> 32
 gen_dat = ll.get_output(gen_layers[-1])
 
 # specify discriminative model
@@ -62,20 +62,20 @@ disc_layers.append(ll.DropoutLayer(disc_layers[-1], p=0.5))
 disc_layers.append(nn.weight_norm(dnn.Conv2DDNNLayer(disc_layers[-1], 192, (3,3), pad=0, W=Normal(0.05), nonlinearity=nn.lrelu)))
 disc_layers.append(nn.weight_norm(ll.NINLayer(disc_layers[-1], num_units=192, W=Normal(0.05), nonlinearity=nn.lrelu)))
 disc_layers.append(nn.weight_norm(ll.NINLayer(disc_layers[-1], num_units=192, W=Normal(0.05), nonlinearity=nn.lrelu)))
-disc_layers.append(nn.GlobalAvgLayer(disc_layers[-1]))
+disc_layers.append(ll.GlobalPoolLayer(disc_layers[-1]))
 disc_layers.append(nn.MinibatchLayer(disc_layers[-1], num_kernels=100))
-disc_layers.append(nn.weight_norm(ll.DenseLayer(disc_layers[-1], num_units=10, W=Normal(0.05), nonlinearity=None),train_g=True))
+disc_layers.append(nn.weight_norm(ll.DenseLayer(disc_layers[-1], num_units=10, W=Normal(0.05), nonlinearity=None), train_g=True, init_stdv=0.1))
 
 # costs
 labels = T.ivector()
 x_lab = T.tensor4()
 x_unl = T.tensor4()
+temp = ll.get_output(gen_layers[-1], deterministic=False, init=True)
 temp = ll.get_output(disc_layers[-1], x_lab, deterministic=False, init=True)
-init_updates = [u for l in disc_layers for u in getattr(l,'init_updates',[])]
+init_updates = [u for l in gen_layers+disc_layers for u in getattr(l,'init_updates',[])]
 
 output_before_softmax_lab = ll.get_output(disc_layers[-1], x_lab, deterministic=False)
 output_before_softmax_unl = ll.get_output(disc_layers[-1], x_unl, deterministic=False)
-bn_updates = [u for l in disc_layers for u in getattr(l,'bn_updates',[])]
 output_before_softmax_gen = ll.get_output(disc_layers[-1], gen_dat, deterministic=False)
 
 l_lab = output_before_softmax_lab[T.arange(args.batch_size),labels]
@@ -95,7 +95,7 @@ lr = T.scalar()
 disc_params = ll.get_all_params(disc_layers, trainable=True)
 disc_param_updates = nn.adam_updates(disc_params, loss_lab + args.unlabeled_weight*loss_unl, lr=lr, mom1=0.5)
 init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates)
-train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates+bn_updates)
+train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates)
 test_batch = th.function(inputs=[x_lab,labels], outputs=test_err)
 samplefun = th.function(inputs=[],outputs=gen_dat)
 
@@ -118,9 +118,9 @@ txs = np.concatenate(txs, axis=0)
 tys = np.concatenate(tys, axis=0)
 
 # //////////// perform training //////////////
-for epoch in range(500):
+for epoch in range(1200):
     begin = time.time()
-    lr = np.cast[th.config.floatX](args.learning_rate * np.minimum(2.5 - epoch/200., 1.))
+    lr = np.cast[th.config.floatX](args.learning_rate * np.minimum(3. - epoch/400., 1.))
 
     # construct randomly permuted minibatches
     trainx = []
