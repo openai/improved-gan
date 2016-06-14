@@ -102,9 +102,12 @@ test_err = T.mean(T.neq(T.argmax(output_before_softmax,axis=1),labels))
 lr = T.scalar()
 disc_params = ll.get_all_params(disc_layers, trainable=True)
 disc_param_updates = nn.adam_updates(disc_params, loss_lab + args.unlabeled_weight*loss_unl, lr=lr, mom1=0.5)
+disc_param_avg = [th.shared(np.cast[th.config.floatX](0.*p.get_value())) for p in disc_params]
+disc_avg_updates = [(a,a+0.0001*(p-a)) for p,a in zip(disc_params,disc_param_avg)]
+disc_avg_givens = [(p,a) for p,a in zip(disc_params,disc_param_avg)]
 init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates)
-train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates)
-test_batch = th.function(inputs=[x_lab], outputs=output_before_softmax)
+train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates+disc_avg_updates)
+test_batch = th.function(inputs=[x_lab], outputs=output_before_softmax, givens=disc_avg_givens)
 samplefun = th.function(inputs=[],outputs=gen_dat)
 
 # Theano functions for training the gen net

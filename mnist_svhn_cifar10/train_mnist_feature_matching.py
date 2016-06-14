@@ -83,12 +83,15 @@ test_err = T.mean(T.neq(T.argmax(output_before_softmax,axis=1),labels))
 lr = T.scalar()
 disc_params = LL.get_all_params(layers, trainable=True)
 disc_param_updates = nn.adam_updates(disc_params, loss_lab + args.unlabeled_weight*loss_unl, lr=lr, mom1=0.5)
+disc_param_avg = [th.shared(np.cast[th.config.floatX](0.*p.get_value())) for p in disc_params]
+disc_avg_updates = [(a,a+0.0001*(p-a)) for p,a in zip(disc_params,disc_param_avg)]
+disc_avg_givens = [(p,a) for p,a in zip(disc_params,disc_param_avg)]
 gen_params = LL.get_all_params(gen_layers[-1], trainable=True)
 gen_param_updates = nn.adam_updates(gen_params, loss_gen, lr=lr, mom1=0.5)
 init_param = th.function(inputs=[x_lab], outputs=None, updates=init_updates)
-train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates)
+train_batch_disc = th.function(inputs=[x_lab,labels,x_unl,lr], outputs=[loss_lab, loss_unl, train_err], updates=disc_param_updates+disc_avg_updates)
 train_batch_gen = th.function(inputs=[x_unl,lr], outputs=[loss_gen], updates=gen_param_updates)
-test_batch = th.function(inputs=[x_lab,labels], outputs=test_err)
+test_batch = th.function(inputs=[x_lab,labels], outputs=test_err, givens=disc_avg_givens)
 
 # load MNIST data
 data = np.load('mnist.npz')
@@ -116,10 +119,9 @@ tys = np.concatenate(tys, axis=0)
 init_param(trainx[:500]) # data dependent initialization
 
 # //////////// perform training //////////////
-start_lr = 0.001
+lr = 0.003
 for epoch in range(300):
     begin = time.time()
-    lr = np.cast[th.config.floatX](start_lr * np.minimum(3. - epoch/100., 1.))
 
     # construct randomly permuted minibatches
     trainx = []

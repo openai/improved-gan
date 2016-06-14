@@ -16,6 +16,9 @@ def relu(x):
 def lrelu(x, a=0.2):
     return T.maximum(x, a*x)
 
+def centered_softplus(x):
+    return T.nnet.softplus(x) - np.cast[th.config.floatX](np.log(2.))
+
 def log_sum_exp(x, axis=1):
     m = T.max(x, axis=axis)
     return m+T.log(T.sum(T.exp(x-m.dimshuffle(0,'x')), axis=axis))
