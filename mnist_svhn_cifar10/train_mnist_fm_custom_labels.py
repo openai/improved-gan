@@ -21,6 +21,7 @@ properties.
 import sys
 import argparse
 import numpy as np
+import os
 import theano as th
 import theano.tensor as T
 import lasagne
@@ -119,7 +120,10 @@ train_batch_gen = th.function(inputs=[x_unl,lr], outputs=[loss_gen], updates=gen
 test_batch = th.function(inputs=[x_lab,labels], outputs=test_err, givens=disc_avg_givens)
 
 # load MNIST data
-data = np.load('mnist.npz')
+mnist_dir = os.path.dirname(os.path.abspath(__file__))
+mnist_path = os.path.join(mnist_dir, 'mnist.npz')
+assert isinstance(mnist_path, str)
+data = np.load(mnist_path)
 trainx = np.concatenate([data['x_test']], axis=0).astype(th.config.floatX)
 trainx = trainx[0:8000]
 trainx_unl = trainx.copy()
