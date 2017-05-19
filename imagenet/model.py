@@ -421,8 +421,8 @@ class VBNL(object):
         with tf.variable_scope(self.name) as scope:
             new_coeff = 1. / (self.batch_size + 1.)
             old_coeff = 1. - new_coeff
-            new_mean = tf.reduce_mean(x, [0, 1, 2], keep_dims=True)
-            new_mean_sq = tf.reduce_mean(tf.square(x), [0, 1, 2], keep_dims=True)
+            new_mean = tf.reduce_mean(x, [1, 2], keep_dims=True)
+            new_mean_sq = tf.reduce_mean(tf.square(x), [1, 2], keep_dims=True)
             mean = new_coeff * new_mean + old_coeff * self.mean
             mean_sq = new_coeff * new_mean_sq + old_coeff * self.mean_sq
             out = self._normalize(x, mean, mean_sq, "live")
@@ -518,8 +518,8 @@ class VBNLP(object):
         with tf.variable_scope(self.name) as scope:
             new_coeff = 1. / (self.batch_size + 1.)
             old_coeff = 1. - new_coeff
-            new_mean = tf.reduce_mean(x, [0], keep_dims=True)
-            new_mean_sq = tf.reduce_mean(tf.square(x), [0], keep_dims=True)
+            new_mean = x
+            new_mean_sq = tf.square(x)
             mean = new_coeff * new_mean + old_coeff * self.mean
             mean_sq = new_coeff * new_mean_sq + old_coeff * self.mean_sq
             out = self._normalize(x, mean, mean_sq, "live")
@@ -616,7 +616,7 @@ class VBN(object):
             new_coeff = 1. / (self.batch_size + 1.)
             old_coeff = 1. - new_coeff
             new_mean = tf.reduce_mean(x, [1, 2], keep_dims=True)
-            new_mean_sq = tf.reduce_mean(tf.square(x), [0, 1, 2], keep_dims=True)
+            new_mean_sq = tf.reduce_mean(tf.square(x), [1, 2], keep_dims=True)
             mean = new_coeff * new_mean + old_coeff * self.mean
             mean_sq = new_coeff * new_mean_sq + old_coeff * self.mean_sq
             out = self._normalize(x, mean, mean_sq, "live")
