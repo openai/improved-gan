@@ -25,6 +25,7 @@ def main(argv):
     files = glob(pattern)
     assert len(files) > 0
     assert len(files) > 1000000, len(files)
+    shuffle(files)
 
     dirs = glob("/home/ian/imagenet/ILSVRC2012_img_train_t1_t2/n*")
     assert len(dirs) == 1000, len(dirs)
