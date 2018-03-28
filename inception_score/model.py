@@ -89,7 +89,7 @@ def _init_inception():
                     new_shape.append(s)
             o.set_shape(tf.TensorShape(new_shape))
     w = sess.graph.get_operation_by_name("softmax/logits/MatMul").inputs[1]
-    logits = tf.matmul(tf.squeeze(pool3), w)
+    logits = tf.matmul(tf.squeeze(pool3, [1, 2]), w)
     softmax = tf.nn.softmax(logits)
 
 if softmax is None:
