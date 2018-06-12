@@ -31,11 +31,11 @@ def train(self, config):
     steps = self.sample_size // self.batch_size
     assert steps > 0
     sample_zs = []
-    for i in xrange(steps):
+    for i in range(steps):
         cur_zs = self.sess.run(self.zses[0])
         assert all(z.shape[0] == self.batch_size for z in cur_zs)
         sample_zs.append(cur_zs)
-    sample_zs = [np.concatenate([batch[i] for batch in sample_zs], axis=0) for i in xrange(len(sample_zs[0]))]
+    sample_zs = [np.concatenate([batch[i] for batch in sample_zs], axis=0) for i in range(len(sample_zs[0]))]
     assert all(sample_z.shape[0] == self.sample_size for sample_z in sample_zs)
 
     counter = 1
@@ -83,14 +83,14 @@ def train(self, config):
                 d_loss = errD_fake + errD_real + errD_class
                 sec_per_batch = (print_time - start_time) / (idx + 1.)
                 sec_this_batch = print_time - batch_start_time
-                print "[Batch %(idx)d] time: %(total_time)4.4f, d_loss: %(d_loss).8f, g_loss: %(errG).8f, d_loss_real: %(errD_real).8f, d_loss_fake: %(errD_fake).8f, d_loss_class: %(errD_class).8f, sec/batch: %(sec_per_batch)4.4f, sec/this batch: %(sec_this_batch)4.4f" \
-                    % locals()
+                print("[Batch %(idx)d] time: %(total_time)4.4f, d_loss: %(d_loss).8f, g_loss: %(errG).8f, d_loss_real: %(errD_real).8f, d_loss_fake: %(errD_fake).8f, d_loss_class: %(errD_class).8f, sec/batch: %(sec_per_batch)4.4f, sec/this batch: %(sec_this_batch)4.4f" \
+                    % locals())
 
             if (idx < 300 and idx % 10 == 0) or time.time() - sample_time > 300:
                 sample_time = time.time()
                 samples = []
                 # generator hard codes the batch size
-                for i in xrange(self.sample_size // self.batch_size):
+                for i in range(self.sample_size // self.batch_size):
                     feed_dict = {}
                     for z, zv in zip(self.zses[0], sample_zs):
                         if zv.ndim == 2:
@@ -114,7 +114,7 @@ def train(self, config):
                 save_time = time.time()
                 self.save(config.checkpoint_dir, counter)
     except tf.errors.OutOfRangeError:
-        print "Done training; epoch limit reached."
+        print("Done training; epoch limit reached.")
     finally:
         coord.request_stop()
 
