@@ -1,3 +1,5 @@
+**Status:** Archive (code is provided as-is, no updates expected)
+
 # improved-gan
 code for the paper "Improved Techniques for Training GANs"
 
