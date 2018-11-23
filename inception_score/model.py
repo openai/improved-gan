@@ -31,7 +31,7 @@ def get_inception_score(images, splits=10):
   for img in images:
     img = img.astype(np.float32)
     inps.append(np.expand_dims(img, 0))
-  bs = 1
+  bs = 100
   with tf.Session() as sess:
     preds = []
     n_batches = int(math.ceil(float(len(inps)) / float(bs)))
@@ -40,7 +40,7 @@ def get_inception_score(images, splits=10):
         sys.stdout.flush()
         inp = inps[(i * bs):min((i + 1) * bs, len(inps))]
         inp = np.concatenate(inp, 0)
-        pred = sess.run(softmax, {'ExpandDims:0': inp})
+        pred = sess.run(softmax, {'InputTensor:0': inp})
         preds.append(pred)
     preds = np.concatenate(preds, 0)
     scores = []
@@ -72,7 +72,12 @@ def _init_inception():
       MODEL_DIR, 'classify_image_graph_def.pb'), 'rb') as f:
     graph_def = tf.GraphDef()
     graph_def.ParseFromString(f.read())
-    _ = tf.import_graph_def(graph_def, name='')
+    # Import model with a modification in the input tensor to accept arbitrary
+    # batch size.
+    input_tensor = tf.placeholder(tf.float32, shape=[None, None, None, 3],
+                                  name='InputTensor')
+    _ = tf.import_graph_def(graph_def, name='',
+                            input_map={'ExpandDims:0':input_tensor})
   # Works with an arbitrary minibatch size.
   with tf.Session() as sess:
     pool3 = sess.graph.get_tensor_by_name('pool_3:0')
