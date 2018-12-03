@@ -148,7 +148,7 @@ class Generator(object):
         sixteenth = dcgan.gf_dim // 16
         if sixteenth == 0:
             sixteenth = 1
-        h5z = make_z([dcgan.batch_size, 128, 128, eighth],
+        h5z = make_z([dcgan.batch_size, 128, 128, sixteenth],
                                    minval=-1., maxval=1.,
                                    name='h5z', dtype=tf.float32)
         zs.append(h5z)
