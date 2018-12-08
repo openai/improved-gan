@@ -44,37 +44,37 @@ def discriminator(self, image, reuse=False, y=None, prefix=""):
             mean=0.0,
             stddev=.1)
 
-    print "Discriminator shapes"
-    print "image: ", image.get_shape()
+    print("Discriminator shapes")
+    print("image: {0}".format(image.get_shape()))
     def tower(bn, suffix):
         assert not self.y_dim
-        print "\ttower "+suffix
+        print("\ttower "+suffix)
         h0 = lrelu(bn(conv2d(noisy_image, self.df_dim, name='d_h0_conv' + suffix, d_h=2, d_w=2,
             k_w=3, k_h=3), "d_bn_0" + suffix))
-        print "\th0 ", h0.get_shape()
+        print("\th0 {0}".format(h0.get_shape()))
         h1 = lrelu(bn(conv2d(h0, self.df_dim * 2, name='d_h1_conv' + suffix, d_h=2, d_w=2,
             k_w=3, k_h=3), "d_bn_1" + suffix))
-        print "\th1 ", h1.get_shape()
+        print("\th1 {0}".format(h1.get_shape()))
         h2 = lrelu(bn(conv2d(h1, self.df_dim * 4, name='d_h2_conv' + suffix, d_h=2, d_w=2,
             k_w=3, k_h=3), "d_bn_2" + suffix))
-        print "\th2 ", h2.get_shape()
+        print("\th2 {0}", h2.get_shape())
 
         h3 = lrelu(bn(conv2d(h2, self.df_dim*4, name='d_h3_conv' + suffix, d_h=1, d_w=1,
             k_w=3, k_h=3), "d_bn_3" + suffix))
-        print "\th3 ", h3.get_shape()
+        print("\th3 {0}".format(h3.get_shape()))
         h4 = lrelu(bn(conv2d(h3, self.df_dim*4, name='d_h4_conv' + suffix, d_h=1, d_w=1,
             k_w=3, k_h=3), "d_bn_4" + suffix))
-        print "\th4 ", h4.get_shape()
+        print("\th4 {0}".format(h4.get_shape()))
         h5 = lrelu(bn(conv2d(h4, self.df_dim*8, name='d_h5_conv' + suffix, d_h=2, d_w=2,
             k_w=3, k_h=3), "d_bn_5" + suffix))
-        print "\th5 ", h5.get_shape()
+        print("\th5 {0}".format(h5.get_shape())
 
         h6 = lrelu(bn(conv2d(h5, self.df_dim*8, name='d_h6_conv' + suffix,
             k_w=3, k_h=3), "d_bn_6" + suffix))
-        print "\th6 ", h6.get_shape()
+        print("\th6 {0}".format(h6.get_shape())
         # return tf.reduce_mean(h6, [1, 2])
         h6_reshaped = tf.reshape(h6, [batch_size, -1])
-        print '\th6_reshaped: ', h6_reshaped.get_shape()
+        print('\th6_reshaped: {0}'.format(h6_reshaped.get_shape()))
 
         h7 = lrelu(bn(linear(h6_reshaped, self.df_dim * 40, scope="d_h7" + suffix), "d_bn_7" + suffix))
 

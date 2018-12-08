@@ -66,7 +66,7 @@ class conv_batch_norm(object):
             global TRAIN_MODE
             self.train = TRAIN_MODE
             self.ema = tf.train.ExponentialMovingAverage(decay=0.9)
-            print "initing %s in train: %s" % (scope.name, self.train)
+            print ("initing {0} in train: {1}".format(scope.name, self.train))
 
     def __call__(self, x):
         shape = x.get_shape()
@@ -167,11 +167,11 @@ def special_deconv2d(input_, output_shape,
 
         def check_shape(h_size, im_size, stride):
             if h_size != (im_size + stride - 1) // stride:
-                print "Need h_size == (im_size + stride - 1) // stride"
-                print "h_size: ", h_size
-                print "im_size: ", im_size
-                print "stride: ", stride
-                print "(im_size + stride - 1) / float(stride): ", (im_size + stride - 1) / float(stride)
+                print ("Need h_size == (im_size + stride - 1) // stride")
+                print ("h_size: {0}".format(h_size))
+                print ("im_size: {0}".format(im_size))
+                print ("stride: {0}".format(stride))
+                print ("(im_size + stride - 1) / float(stride): {0}".format((im_size + stride - 1) / float(stride)))
                 raise ValueError()
 
         check_shape(int(input_.get_shape()[1]), output_shape[1] + k_h, d_h)

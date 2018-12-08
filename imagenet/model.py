@@ -26,7 +26,7 @@ class DCGAN(object):
                  devices=None,
                  disable_vbn=False,
                  sample_size=64,
-		 out_init_b=0.,
+                 out_init_b=0.,
                  out_stddev=.15):
         """
 
@@ -44,8 +44,8 @@ class DCGAN(object):
         self.disable_vbn = disable_vbn
         self.devices = devices
         self.d_label_smooth = d_label_smooth
-	self.out_init_b = out_init_b
-	self.out_stddev = out_stddev
+        self.out_init_b = out_init_b
+        self.out_stddev = out_stddev
         self.config = config
         self.generator_target_prob = generator_target_prob
         if generator is not None:
@@ -226,7 +226,7 @@ class DCGAN(object):
             self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
             return True
         else:
-            print "Bad checkpoint: ", ckpt
+            print("Bad checkpoint: {0}".format(ckpt))
             return False
 
 

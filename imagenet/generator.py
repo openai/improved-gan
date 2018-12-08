@@ -21,7 +21,7 @@ class Generator(object):
                                 initializer=tf.random_uniform_initializer(minval, maxval),
                                 trainable=False)
                     if z.device != "/device:GPU:0":
-                        print "z.device is " + str(z.device)
+                        print("z.device is " + str(z.device))
                         assert False
             else:
                 z = tf.random_uniform(shape,
@@ -109,7 +109,7 @@ class Generator(object):
         else:
             h3_name = "h3_relu_reuse"
         h3 = tf.nn.relu(dcgan.vbn(h3, "g_vbn_3"), name=h3_name)
-        print "h3 shape: ", h3.get_shape()
+        print("h3 shape: {0}".format(h3.get_shape()))
 
         quarter = dcgan.gf_dim // 4
         if quarter == 0:
@@ -127,7 +127,7 @@ class Generator(object):
                 name='g_h4', with_w=make_vars),
             'h4_w', 'h4_b')
         h4 = tf.nn.relu(dcgan.vbn(h4, "g_vbn_4"))
-        print "h4 shape: ", h4.get_shape()
+        print("h4 shape: {0}".format(h4.get_shape()))
 
         eighth = dcgan.gf_dim // 8
         if eighth == 0:
@@ -143,7 +143,7 @@ class Generator(object):
                 name='g_h5', with_w=make_vars),
             'h5_w', 'h5_b')
         h5 = tf.nn.relu(dcgan.vbn(h5, "g_vbn_5"))
-        print "h5 shape: ", h5.get_shape()
+        print("h5 shape: {0}".format(h5.get_shape()))
 
         sixteenth = dcgan.gf_dim // 16
         if sixteenth == 0:
@@ -161,7 +161,7 @@ class Generator(object):
                 init_bias=dcgan.out_init_b,
                 stddev=dcgan.out_stddev),
             'h6_w', 'h6_b')
-        print 'h6 shape: ', h6.get_shape()
+        print('h6 shape: {0}'.format(h6.get_shape()))
 
         out = tf.nn.tanh(h6)
 
